@@ -1,0 +1,147 @@
+# rest api looks like - http://<installation_address>/app/api/v1
+
+name: DerScanner SAST Security Scan 2
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  MIN_RATING: "3.0"
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Build with Maven
+        run: mvn clean package
+
+      # - name: Download Scanner
+      #   run: curl -L ${{ secrets.CLT_URL }} -o clt.jar
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            target/*.war
+            clt.jar
+
+  sast_scan:
+    name: Start Security Scan
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Run Security Scan
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} start -type FILE \
+          -path target/*.war -name "${{ github.event.repository.name }}:${{ github.ref_name }}" \
+          -languages JAVA,CONFIG | tee metainf
+          
+          echo "PROJECT_UUID=$(grep -oE 'Project.*' metainf | cut -d' ' -f3)" >> $GITHUB_ENV
+          echo "SCAN_UUID=$(grep -oE 'Scan.*' metainf | cut -d' ' -f3)" >> $GITHUB_ENV
+
+  scan_status:
+    name: Check Scan Status
+    needs: sast_scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check Scan Completion
+        run: |
+          until java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} status -scanid $SCAN_UUID | grep COMPLETE; do
+            echo "Waiting for the COMPLETE status..."
+            sleep 10
+          done
+          echo "Scan successfully finished!"
+
+  report_pdf_en:
+    name: Generate PDF Report (EN)
+    needs: scan_status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Report
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
+          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format PDF -general.locale en
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-pdf-en
+          path: "*.pdf"
+
+  report_csv_ru:
+    name: Generate CSV Report (RU)
+    needs: scan_status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Report
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
+          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format CSV -general.locale ru
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-csv-ru
+          path: "*.zip"
+
+    report_json:
+    name: Generate JSON Report (Sarif)
+    needs: scan_status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Report
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
+          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format JSON -general.locale en
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-json
+          path: "*.json"
+
+  check_scan_score:
+    name: Validate Scan Score
+    needs: scan_status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Security Score
+        run: |
+          SCORE=$(java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} score -scanid $SCAN_UUID | grep -oE 'Score:.*' | cut -d' ' -f2)
+          
+          if awk "BEGIN {exit ($SCORE >= $MIN_RATING)}"; then
+            echo "Your score is below the required ${MIN_RATING}!"
+            exit 1
+          else
+            echo "Scan passed with a sufficient score!"
+          fi
+
+  deploy:
+    name: Deploy Application
+    needs: check_scan_score
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Confirmation
+        run: echo "You can safely deploy the application"

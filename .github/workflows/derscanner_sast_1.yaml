@@ -1,0 +1,55 @@
+# rest api looks like - http://<installation_address>/app/api/v1
+
+name: DerScanner SAST Security Scan 1
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      # - name: Download CLT tool
+      #   run: |
+      #     if [ ! -f clt.jar ]; then
+      #       curl -o clt.jar <URL_TO_CLT_JAR>
+      #     fi
+
+      - name: Run DerScanner SAST Security Scan 1
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} \
+          -token ${{ secrets.API_TOKEN }} \
+          sastStart -type FILE -path . -name "${{ github.event.repository.name }}" -json | tee scan_output.json
+
+      - name: Check Scan Status
+        run: |
+          SCAN_ID=$(java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} sastStatus -json | jq -r '.scanid')
+          echo "Scan ID: $SCAN_ID"
+          echo "SCAN_ID=$SCAN_ID" >> $GITHUB_ENV
+
+      - name: Export Report in JSON
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} \
+          -token ${{ secrets.API_TOKEN }} \
+          sastExport -scanid $SCAN_ID -path reports/ -general.format JSON | tee reports/scan_report.json
+
+      - name: Upload JSON Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Security Report (JSON)
+          path: reports/scan_report.json
