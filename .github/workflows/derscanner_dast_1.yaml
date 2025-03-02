@@ -59,7 +59,7 @@ jobs:
           dastExport -path ./ -project $PROJECT_ID -scans $SCAN_ID -general.format JSON
 
       - name: Upload Scan Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dast-results
           path: report.json
