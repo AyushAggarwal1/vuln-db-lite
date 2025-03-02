@@ -1,4 +1,5 @@
 # rest api looks like - http://<installation_address>/app/api/v1
+# REST API base URL: http://<installation_address>/app/api/v1
 
 name: DerScanner SAST Security Scan 2
 
@@ -56,7 +57,7 @@ jobs:
           java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} start -type FILE \
           -path target/*.war -name "${{ github.event.repository.name }}:${{ github.ref_name }}" \
           -languages JAVA,CONFIG | tee metainf
-          
+
           echo "PROJECT_UUID=$(grep -oE 'Project.*' metainf | cut -d' ' -f3)" >> $GITHUB_ENV
           echo "SCAN_UUID=$(grep -oE 'Scan.*' metainf | cut -d' ' -f3)" >> $GITHUB_ENV
 
@@ -106,21 +107,21 @@ jobs:
           name: security-report-csv-ru
           path: "*.zip"
 
-    report_json:
-      name: Generate JSON Report (Sarif)
-      needs: scan_status
-      runs-on: ubuntu-latest
-      steps:
-        - name: Generate Report
-          run: |
-            java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
-            -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format JSON -general.locale en
-  
-        - name: Upload Report
-          uses: actions/upload-artifact@v4
-          with:
-            name: security-report-json
-            path: "*.json"
+  report_json:
+    name: Generate JSON Report (Sarif)
+    needs: scan_status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Report
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
+          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format JSON -general.locale en
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-json
+          path: "*.json"
 
   check_scan_score:
     name: Validate Scan Score
@@ -130,7 +131,7 @@ jobs:
       - name: Get Security Score
         run: |
           SCORE=$(java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} score -scanid $SCAN_UUID | grep -oE 'Score:.*' | cut -d' ' -f2)
-          
+
           if awk "BEGIN {exit ($SCORE >= $MIN_RATING)}"; then
             echo "Your score is below the required ${MIN_RATING}!"
             exit 1
