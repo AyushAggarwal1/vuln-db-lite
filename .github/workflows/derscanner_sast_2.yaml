@@ -107,20 +107,20 @@ jobs:
           path: "*.zip"
 
     report_json:
-    name: Generate JSON Report (Sarif)
-    needs: scan_status
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate Report
-        run: |
-          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
-          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format JSON -general.locale en
-
-      - name: Upload Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-report-json
-          path: "*.json"
+      name: Generate JSON Report (Sarif)
+      needs: scan_status
+      runs-on: ubuntu-latest
+      steps:
+        - name: Generate Report
+          run: |
+            java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
+            -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format JSON -general.locale en
+  
+        - name: Upload Report
+          uses: actions/upload-artifact@v4
+          with:
+            name: security-report-json
+            path: "*.json"
 
   check_scan_score:
     name: Validate Scan Score
