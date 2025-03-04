@@ -24,8 +24,8 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Build with Maven
-        run: mvn clean package
+      # - name: Build with Maven
+      #   run: mvn clean package
 
       - name: Prepare DerScanner Plugins Directory
         run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
