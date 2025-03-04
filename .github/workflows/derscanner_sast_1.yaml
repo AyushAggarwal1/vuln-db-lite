@@ -37,9 +37,9 @@ jobs:
         run: |
           java -jar /opt/DerScanner/app/plugins/clt.jar \
           -rest ${{ secrets.DERSCANNER_REST }} \
-          -token ${{ secrets.DERSCANNER_TOKEN }} start \
+          -token ${{ secrets.DERSCANNER_TOKEN }} sastStart \
           -type FILE \
-          -path target/*.war \
+          -path . \
           -name ${{ github.event.repository.name }}:${{ github.ref_name }} \
           -languages JAVA,CONFIG | tee metainf
         shell: bash
