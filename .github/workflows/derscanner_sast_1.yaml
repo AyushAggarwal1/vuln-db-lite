@@ -27,11 +27,11 @@ jobs:
       # - name: Build with Maven
       #   run: mvn clean package
 
-      # - name: Prepare DerScanner Plugins Directory
-      #   run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
+      - name: Prepare DerScanner Plugins Directory
+        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
 
-      # - name: Download DerScanner CLI
-      #   run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+      - name: Download DerScanner CLI
+        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
 
       # - name: Start DerScanner Scan
       #   run: |
