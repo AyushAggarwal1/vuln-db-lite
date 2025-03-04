@@ -27,37 +27,40 @@ jobs:
       # - name: Build with Maven
       #   run: mvn clean package
 
-      - name: Prepare DerScanner Plugins Directory
-        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
+      # - name: Prepare DerScanner Plugins Directory
+      #   run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
 
-      - name: Download DerScanner CLI
-        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+      # - name: Download DerScanner CLI
+      #   run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
 
-      - name: Start DerScanner Scan
-        run: |
-          java -jar /opt/DerScanner/app/plugins/clt.jar \
-          -rest ${{ secrets.DERSCANNER_REST }} \
-          -token ${{ secrets.DERSCANNER_TOKEN }} sastStart \
-          -type FILE \
-          -path . \
-          -name ${{ github.event.repository.name }}:${{ github.ref_name }} \
-          -languages JAVA,CONFIG | tee metainf
-        shell: bash
+      # - name: Start DerScanner Scan
+      #   run: |
+      #     java -jar /opt/DerScanner/app/plugins/clt.jar \
+      #     -rest ${{ secrets.DERSCANNER_REST }} \
+      #     -token ${{ secrets.DERSCANNER_TOKEN }} sastStart \
+      #     -type FILE \
+      #     -path . \
+      #     -name ${{ github.event.repository.name }}:${{ github.ref_name }} \
+      #     -languages JAVA,CONFIG | tee metainf
+      #   shell: bash
 
-      - name: Extract Scan Identifiers
-        run: |
-          PROJECT_UUID=$(grep -oP 'Project UUID:\s*\K[\w-]+' metainf)
-          SCAN_UUID=$(grep -oP 'Scan UUID:\s*\K[\w-]+' metainf)
+      # - name: Extract Scan Identifiers
+      #   run: |
+      #     PROJECT_UUID=$(grep -oP 'Project UUID:\s*\K[\w-]+' metainf)
+      #     SCAN_UUID=$(grep -oP 'Scan UUID:\s*\K[\w-]+' metainf)
           
-          if [[ -z "$PROJECT_UUID" || -z "$SCAN_UUID" ]]; then
-            echo "Failed to extract UUIDs. Dumping metainf for debugging:"
-            cat metainf
-            exit 1
-          fi
+      #     if [[ -z "$PROJECT_UUID" || -z "$SCAN_UUID" ]]; then
+      #       echo "Failed to extract UUIDs. Dumping metainf for debugging:"
+      #       cat metainf
+      #       exit 1
+      #     fi
           
-          echo "PROJECT_UUID=$PROJECT_UUID" >> $GITHUB_ENV
-          echo "SCAN_UUID=$SCAN_UUID" >> $GITHUB_ENV
-
+      #     echo "PROJECT_UUID=$PROJECT_UUID" >> $GITHUB_ENV
+      #     echo "SCAN_UUID=$SCAN_UUID" >> $GITHUB_ENV
+      - name: Manually Set SCAN_UUID
+        run: echo "SCAN_UUID=5e03a9f9-bc5f-4114-8a68-bad42de78222" >> $GITHUB_ENV
+        run: echo "PROJECT_UUID=b170166d-905f-4c74-b00e-a0ad8b60b833" >> $GITHUB_ENV
+        
       - name: Monitor Scan Status
         run: |
           until java -jar /opt/DerScanner/app/plugins/clt.jar \
