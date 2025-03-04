@@ -46,8 +46,17 @@ jobs:
 
       - name: Extract Scan Identifiers
         run: |
-          echo "PROJECT_UUID=$(grep -oE 'Project.*' metainf | cut -d' ' -f3)" >> $GITHUB_ENV
-          echo "SCAN_UUID=$(grep -oE 'Scan.*' metainf | cut -d' ' -f3)" >> $GITHUB_ENV
+          PROJECT_UUID=$(grep -oP 'Project UUID:\s*\K[\w-]+' metainf)
+          SCAN_UUID=$(grep -oP 'Scan UUID:\s*\K[\w-]+' metainf)
+          
+          if [[ -z "$PROJECT_UUID" || -z "$SCAN_UUID" ]]; then
+            echo "Failed to extract UUIDs. Dumping metainf for debugging:"
+            cat metainf
+            exit 1
+          fi
+          
+          echo "PROJECT_UUID=$PROJECT_UUID" >> $GITHUB_ENV
+          echo "SCAN_UUID=$SCAN_UUID" >> $GITHUB_ENV
 
       - name: Monitor Scan Status
         run: |
