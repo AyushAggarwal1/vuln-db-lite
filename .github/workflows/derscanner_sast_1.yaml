@@ -58,8 +58,9 @@ jobs:
       #     echo "PROJECT_UUID=$PROJECT_UUID" >> $GITHUB_ENV
       #     echo "SCAN_UUID=$SCAN_UUID" >> $GITHUB_ENV
       - name: Manually Set SCAN_UUID
-        run: echo "SCAN_UUID=5e03a9f9-bc5f-4114-8a68-bad42de78222" >> $GITHUB_ENV
-        run: echo "PROJECT_UUID=b170166d-905f-4c74-b00e-a0ad8b60b833" >> $GITHUB_ENV
+        run: |
+          echo "SCAN_UUID=5e03a9f9-bc5f-4114-8a68-bad42de78222" >> $GITHUB_ENV
+          echo "PROJECT_UUID=b170166d-905f-4c74-b00e-a0ad8b60b833" >> $GITHUB_ENV
         
       - name: Monitor Scan Status
         run: |
