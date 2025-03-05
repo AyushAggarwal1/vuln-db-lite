@@ -57,7 +57,7 @@ jobs:
             STATUS=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
               -rest ${{ secrets.DERSCANNER_REST }} \
               -token ${{ secrets.DERSCANNER_TOKEN }} dastScanInfo \
-              -scanid $SCAN_ID)
+              -scan $SCAN_ID)
       
             echo "Scan status: $STATUS"
       
