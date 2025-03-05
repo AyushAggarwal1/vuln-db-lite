@@ -2,7 +2,7 @@
 # clt.jar path looks like - http://<installation_address>:8000/clt.jar
 # (cd /opt/derscanner/app/plugins/ python3 -m http.server 8000)
 
-name: DerScanner DAST Security Scan 1
+name: DerScanner DAST Security Scan 
 
 on:
   push:
