@@ -82,4 +82,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dast-results
-          path: report.json
+          path: |
+            *.json
