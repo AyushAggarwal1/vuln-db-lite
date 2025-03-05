@@ -33,7 +33,7 @@ jobs:
           RESPONSE=$(java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} \
           dastProjectCreate -name "${{ github.event.repository.name }}:${{ github.ref_name }}")
 
-          PROJECT_ID=$(echo $RESPONSE | jq -r '.projectUuid')
+          PROJECT_ID=$(echo "$RESPONSE" | awk '/DAST project ID/ {print $NF}')
           echo "Project ID: $PROJECT_ID"
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
