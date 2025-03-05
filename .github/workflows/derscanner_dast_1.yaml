@@ -1,0 +1,85 @@
+# # rest api looks like - http://<installation_address>/app/api/v1
+
+name: DerScanner DAST Security Scan 1
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  dast_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Prepare DerScanner Plugins Directory
+        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
+
+      - name: Download DerScanner CLI
+        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+
+      # - name: Create DAST Project (if not exists)
+      #   run: |
+      #     RESPONSE=$(java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} \
+      #     dastProjectCreate -name "${{ github.event.repository.name }}:${{ github.ref_name }}")
+
+      #     PROJECT_ID=$(echo "$RESPONSE" | awk '/DAST project ID/ {print $NF}')
+      #     echo "Project ID: $PROJECT_ID"
+      #     echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+
+      # - name: Start DAST Scan
+      #   run: |
+      #     SCAN_RESPONSE=$(java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} \
+      #     dastScanCreate -url ${{ secrets.TARGET_URL }} -project $PROJECT_ID)
+
+      #     SCAN_ID=$(echo "$SCAN_RESPONSE" | grep -oP 'Scan ID: \K\d+')
+      #     echo "Scan ID: $SCAN_ID"
+      #     echo "SCAN_ID=$SCAN_ID" >> $GITHUB_ENV
+
+      - name: Manually Set SCAN_ID
+        run: |
+          echo "SCAN_ID=8" >> $GITHUB_ENV
+          echo "PROJECT_ID=6" >> $GITHUB_ENV
+
+      - name: Monitor Scan Status
+        run: |
+          while true; do
+            STATUS=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
+              -rest ${{ secrets.DERSCANNER_REST }} \
+              -token ${{ secrets.DERSCANNER_TOKEN }} dastScanInfo \
+              -scan $SCAN_ID)
+      
+            echo "Scan status: $STATUS"
+      
+            if echo "$STATUS" | grep -q "COMPLETE"; then
+              echo "Scan completed successfully!"
+              break
+            elif echo "$STATUS" | grep -q "FAILED"; then
+              echo "Scan failed!"
+              exit 1
+            fi
+      
+            echo "Waiting for scan completion..."
+            sleep 10
+          done
+
+      - name: Export Scan Results to JSON
+        run: |
+          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} \
+          dastExport -path ./ -project $PROJECT_ID -scans $SCAN_ID -general.format SARIF
+
+      - name: Upload Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-results
+          path: report.json
