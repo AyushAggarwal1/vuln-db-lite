@@ -48,7 +48,7 @@ jobs:
 
       - name: Manually Set SCAN_ID
         run: |
-          echo "SCAN_ID=6" >> $GITHUB_ENV
+          echo "SCAN_ID=7" >> $GITHUB_ENV
           echo "PROJECT_ID=6" >> $GITHUB_ENV
 
       - name: Monitor Scan Status
