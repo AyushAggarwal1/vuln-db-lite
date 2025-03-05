@@ -9,6 +9,16 @@ on:
   pull_request:
 
 jobs:
+  setup_derscanner:
+    name: Setup DerScanner Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare DerScanner Plugins Directory
+        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
+
+      - name: Download DerScanner CLI
+        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -28,15 +38,15 @@ jobs:
 
   SAST_Scan:
     name: Prepare DerScanner SAST Scan and Check Status
-    needs: build
+    needs: [build, setup_derscanner]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Prepare DerScanner Plugins Directory
-        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
+    #   - name: Prepare DerScanner Plugins Directory
+    #     run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
 
-      - name: Download DerScanner CLI
-        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+    #   - name: Download DerScanner CLI
+    #     run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
 
       # - name: Start DerScanner SAST Scan
       #   run: |
@@ -92,7 +102,7 @@ jobs:
 
   report_pdf_en:
     name: Generate PDF Report (EN)
-    needs: SAST_Scan
+    needs: [setup_derscanner,SAST_Scan]
     runs-on: ubuntu-latest
     steps:
       - name: Generate Report
