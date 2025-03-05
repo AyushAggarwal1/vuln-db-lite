@@ -9,17 +9,7 @@ on:
   pull_request:
 
 jobs:
-  setup_derscanner:
-    name: Setup DerScanner Environment
-    runs-on: ubuntu-latest
-    steps:
-      - name: Prepare DerScanner Plugins Directory
-        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
-
-      - name: Download DerScanner CLI
-        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
-
-  build:
+  SAST_Scan:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -36,17 +26,11 @@ jobs:
       # - name: Build with Maven
       #   run: mvn clean package
 
-  SAST_Scan:
-    name: Prepare DerScanner SAST Scan and Check Status
-    needs: [build, setup_derscanner]
-    runs-on: ubuntu-latest
+      - name: Prepare DerScanner Plugins Directory
+        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
 
-    steps:
-    #   - name: Prepare DerScanner Plugins Directory
-    #     run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
-
-    #   - name: Download DerScanner CLI
-    #     run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+      - name: Download DerScanner CLI
+        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
 
       # - name: Start DerScanner SAST Scan
       #   run: |
@@ -100,15 +84,11 @@ jobs:
             sleep 10
           done
 
-  report_pdf_en:
-    name: Generate PDF Report (EN)
-    needs: [setup_derscanner,SAST_Scan]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate Report
+      - name: Generate PDF Report (EN)
         run: |
           java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
           -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format PDF -general.locale en
+        shell: bash
 
       - name: Upload Report
         uses: actions/upload-artifact@v4
