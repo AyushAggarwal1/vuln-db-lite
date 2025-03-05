@@ -86,7 +86,7 @@ jobs:
 
       - name: Generate PDF Report (EN)
         run: |
-          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
+          java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} export \
           -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format PDF -general.locale en
         shell: bash
 
