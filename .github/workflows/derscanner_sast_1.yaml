@@ -62,27 +62,27 @@ jobs:
           echo "SCAN_UUID=5e03a9f9-bc5f-4114-8a68-bad42de78222" >> $GITHUB_ENV
           echo "PROJECT_UUID=b170166d-905f-4c74-b00e-a0ad8b60b833" >> $GITHUB_ENV
         
-      # - name: Monitor Scan Status
-      #   run: |
-      #     while true; do
-      #       STATUS=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
-      #         -rest ${{ secrets.DERSCANNER_REST }} \
-      #         -token ${{ secrets.DERSCANNER_TOKEN }} status \
-      #         -scanid $SCAN_UUID)
+      - name: Monitor Scan Status
+        run: |
+          while true; do
+            STATUS=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
+              -rest ${{ secrets.DERSCANNER_REST }} \
+              -token ${{ secrets.DERSCANNER_TOKEN }} sastStatus \
+              -scanid $SCAN_UUID)
       
-      #       echo "Scan status: $STATUS"
+            echo "Scan status: $STATUS"
       
-      #       if echo "$STATUS" | grep -q "COMPLETE"; then
-      #         echo "Scan completed successfully!"
-      #         break
-      #       elif echo "$STATUS" | grep -q "FAILED"; then
-      #         echo "Scan failed!"
-      #         exit 1
-      #       fi
+            if echo "$STATUS" | grep -q "COMPLETE"; then
+              echo "Scan completed successfully!"
+              break
+            elif echo "$STATUS" | grep -q "FAILED"; then
+              echo "Scan failed!"
+              exit 1
+            fi
       
-      #       echo "Waiting for scan completion..."
-      #       sleep 10
-      #     done
+            echo "Waiting for scan completion..."
+            sleep 10
+          done
 
       - name: Export Report (PDF - English)
         run: |
