@@ -75,7 +75,7 @@ jobs:
 
       - name: Export Scan Results to JSON
         run: |
-          java -jar clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} \
+          java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} \
           dastExport -path ./ -project $PROJECT_ID -scans $SCAN_ID -general.format SARIF
 
       - name: Upload Scan Results
