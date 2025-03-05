@@ -1,4 +1,6 @@
 # REST API looks like - http://<installation_address>/app/api/v1
+# clt.jar path looks like - http://<installation_address>:8000/clt.jar
+# (cd /opt/derscanner/app/plugins/ python3 -m http.server 8000)
 
 name: DerScanner SAST Scan
 
@@ -84,12 +86,6 @@ jobs:
             sleep 10
           done
 
-      - name: Generate PDF Report (EN)
-        run: |
-          java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} sastExport \
-          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format PDF -general.locale en
-        shell: bash
-
       - name: Export Report (JSON - English)
         run: |
           java -jar /opt/DerScanner/app/plugins/clt.jar \
@@ -107,7 +103,5 @@ jobs:
         with:
           name: DerScanner Reports
           path: |
-            *.pdf
-            *.csv
             *.json
-            *.zip
+
