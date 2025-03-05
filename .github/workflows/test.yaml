@@ -92,7 +92,7 @@ jobs:
 
   report_pdf_en:
     name: Generate PDF Report (EN)
-    needs: Scan_Status
+    needs: SAST_Scan
     runs-on: ubuntu-latest
     steps:
       - name: Generate Report
