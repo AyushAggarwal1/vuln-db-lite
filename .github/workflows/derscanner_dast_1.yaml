@@ -61,7 +61,7 @@ jobs:
       
             echo "Scan status: $STATUS"
       
-            if echo "$STATUS" | grep -q "COMPLETE"; then
+            if echo "$STATUS" | grep -q "SUCCESS"; then
               echo "Scan completed successfully!"
               break
             elif echo "$STATUS" | grep -q "FAILED"; then
