@@ -1,142 +1,113 @@
-# # rest api looks like - http://<installation_address>/app/api/v1
+# REST API looks like - http://<installation_address>/app/api/v1
 
-# name: DerScanner SAST
+name: DerScanner SAST Scan
 
-# on:
-#   push:
-#     branches:
-#       - main
-#   pull_request:
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
+jobs:
+  SAST_Scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-#         with:
-#           fetch-depth: 0
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
 
-#       - name: Set up JDK 11
-#         uses: actions/setup-java@v3
-#         with:
-#           distribution: 'temurin'
-#           java-version: '11'
+      # - name: Build with Maven
+      #   run: mvn clean package
 
-#       # - name: Build with Maven
-#       #   run: mvn clean package
+      - name: Prepare DerScanner Plugins Directory
+        run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
 
-#       - name: Prepare DerScanner Plugins Directory
-#         run: sudo mkdir -p /opt/DerScanner/app/plugins && sudo chmod -R 777 /opt/DerScanner
+      - name: Download DerScanner CLI
+        run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
 
-#       - name: Download DerScanner CLI
-#         run: curl -L ${{ secrets.DERSCANNER_CLT_URL }} -o /opt/DerScanner/app/plugins/clt.jar
+      # - name: Start DerScanner SAST Scan
+      #   run: |
+      #     java -jar /opt/DerScanner/app/plugins/clt.jar \
+      #       -rest ${{ secrets.DERSCANNER_REST }} \
+      #       -token ${{ secrets.DERSCANNER_TOKEN }} sastStart \
+      #       -type FILE \
+      #       -path . \
+      #       -name ${{ github.event.repository.name }}:${{ github.ref_name }} \
+      #       -languages JAVA,CONFIG | tee metainf
+      #   shell: bash
 
-#       # - name: Start DerScanner Scan
-#       #   run: |
-#       #     java -jar /opt/DerScanner/app/plugins/clt.jar \
-#       #     -rest ${{ secrets.DERSCANNER_REST }} \
-#       #     -token ${{ secrets.DERSCANNER_TOKEN }} sastStart \
-#       #     -type FILE \
-#       #     -path . \
-#       #     -name ${{ github.event.repository.name }}:${{ github.ref_name }} \
-#       #     -languages JAVA,CONFIG | tee metainf
-#       #   shell: bash
-
-#       # - name: Extract Scan Identifiers
-#       #   run: |
-#       #     PROJECT_UUID=$(grep -oP 'Project UUID:\s*\K[\w-]+' metainf)
-#       #     SCAN_UUID=$(grep -oP 'Scan UUID:\s*\K[\w-]+' metainf)
+      # - name: Extract DerScanner SAST Scan Identifiers
+      #   run: |
+      #     PROJECT_UUID=$(grep -oP 'Project UUID:\s*\K[\w-]+' metainf)
+      #     SCAN_UUID=$(grep -oP 'Scan UUID:\s*\K[\w-]+' metainf)
           
-#       #     if [[ -z "$PROJECT_UUID" || -z "$SCAN_UUID" ]]; then
-#       #       echo "Failed to extract UUIDs. Dumping metainf for debugging:"
-#       #       cat metainf
-#       #       exit 1
-#       #     fi
+      #     if [[ -z "$PROJECT_UUID" || -z "$SCAN_UUID" ]]; then
+      #       echo "Failed to extract UUIDs. Dumping metainf for debugging:"
+      #       cat metainf
+      #       exit 1
+      #     fi
           
-#       #     echo "PROJECT_UUID=$PROJECT_UUID" >> $GITHUB_ENV
-#       #     echo "SCAN_UUID=$SCAN_UUID" >> $GITHUB_ENV
-#       - name: Manually Set SCAN_UUID
-#         run: |
-#           echo "SCAN_UUID=5e03a9f9-bc5f-4114-8a68-bad42de78222" >> $GITHUB_ENV
-#           echo "PROJECT_UUID=b170166d-905f-4c74-b00e-a0ad8b60b833" >> $GITHUB_ENV
-        
-#       - name: Monitor Scan Status
-#         run: |
-#           while true; do
-#             STATUS=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
-#               -rest ${{ secrets.DERSCANNER_REST }} \
-#               -token ${{ secrets.DERSCANNER_TOKEN }} sastStatus \
-#               -scanid $SCAN_UUID)
+      #     echo "PROJECT_UUID=$PROJECT_UUID" >> $GITHUB_ENV
+      #     echo "SCAN_UUID=$SCAN_UUID" >> $GITHUB_ENV
+
+      - name: Manually Set SCAN_UUID
+        run: |
+          echo "SCAN_UUID=5e03a9f9-bc5f-4114-8a68-bad42de78222" >> $GITHUB_ENV
+          echo "PROJECT_UUID=b170166d-905f-4c74-b00e-a0ad8b60b833" >> $GITHUB_ENV
+
+      - name: Monitor Scan Status
+        run: |
+          while true; do
+            STATUS=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
+              -rest ${{ secrets.DERSCANNER_REST }} \
+              -token ${{ secrets.DERSCANNER_TOKEN }} sastStatus \
+              -scanid $SCAN_UUID)
       
-#             echo "Scan status: $STATUS"
+            echo "Scan status: $STATUS"
       
-#             if echo "$STATUS" | grep -q "COMPLETE"; then
-#               echo "Scan completed successfully!"
-#               break
-#             elif echo "$STATUS" | grep -q "FAILED"; then
-#               echo "Scan failed!"
-#               exit 1
-#             fi
+            if echo "$STATUS" | grep -q "COMPLETE"; then
+              echo "Scan completed successfully!"
+              break
+            elif echo "$STATUS" | grep -q "FAILED"; then
+              echo "Scan failed!"
+              exit 1
+            fi
       
-#             echo "Waiting for scan completion..."
-#             sleep 10
-#           done
+            echo "Waiting for scan completion..."
+            sleep 10
+          done
 
-#       - name: Export Report (PDF - English)
-#         run: |
-#           java -jar /opt/DerScanner/app/plugins/clt.jar \
-#           -rest ${{ secrets.DERSCANNER_REST }} \
-#           -token ${{ secrets.DERSCANNER_TOKEN }} export \
-#           -project $PROJECT_UUID \
-#           -scans $SCAN_UUID \
-#           -path . \
-#           -general.format PDF \
-#           -general.locale en
+      - name: Generate PDF Report (EN)
+        run: |
+          java -jar /opt/DerScanner/app/plugins/clt.jar -rest ${{ secrets.REST_URL }} -token ${{ secrets.API_TOKEN }} sastExport \
+          -project $PROJECT_UUID -scans $SCAN_UUID -path . -general.format PDF -general.locale en
+        shell: bash
 
-#       - name: Export Report (CSV - English)
-#         run: |
-#           java -jar /opt/DerScanner/app/plugins/clt.jar \
-#           -rest ${{ secrets.DERSCANNER_REST }} \
-#           -token ${{ secrets.DERSCANNER_TOKEN }} export \
-#           -project $PROJECT_UUID \
-#           -scans $SCAN_UUID \
-#           -path . \
-#           -general.format CSV \
-#           -general.locale en
+      - name: Export Report (JSON - English)
+        run: |
+          java -jar /opt/DerScanner/app/plugins/clt.jar \
+          -rest ${{ secrets.DERSCANNER_REST }} \
+          -token ${{ secrets.DERSCANNER_TOKEN }} sastExport \
+          -project $PROJECT_UUID \
+          -scans $SCAN_UUID \
+          -path . \
+          -general.format SARIF \
+          -general.locale en
 
-#       - name: Export Report (JSON - English)
-#         run: |
-#           java -jar /opt/DerScanner/app/plugins/clt.jar \
-#           -rest ${{ secrets.DERSCANNER_REST }} \
-#           -token ${{ secrets.DERSCANNER_TOKEN }} export \
-#           -project $PROJECT_UUID \
-#           -scans $SCAN_UUID \
-#           -path . \
-#           -general.format JSON \
-#           -general.locale en
 
-#       - name: Check Scan Rating
-#         run: |
-#           SCORE=$(java -jar /opt/DerScanner/app/plugins/clt.jar \
-#           -rest ${{ secrets.DERSCANNER_REST }} \
-#           -token ${{ secrets.DERSCANNER_TOKEN }} score \
-#           -scanid $SCAN_UUID | grep -oE 'Score:.*' | cut -d' ' -f2)
-          
-#           if awk "BEGIN {exit ($SCORE < 3.0)}"; then
-#             echo "Scan rating too low! Failing build."
-#             exit 1
-#           else
-#             echo "Scan passed with rating: $SCORE"
-#           fi
-
-#       - name: Upload Reports as Artifacts
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: DerScanner Reports
-#           path: |
-#             *.pdf
-#             *.csv
-#             *.json
-#             *.zip
+      - name: Upload Reports as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DerScanner Reports
+          path: |
+            *.pdf
+            *.csv
+            *.json
+            *.zip
