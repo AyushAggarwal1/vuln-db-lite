@@ -1,0 +1,164 @@
+name: Checkmarx Sarif Integration
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '18 2 * * 5'
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Checkmarx scan
+        uses: checkmarx/ast-github-action@main
+        with:
+          base_uri: https://deu.iam.checkmarx.net/
+          cx_client_id: Ayush_Agg
+          cx_client_secret: ${{ secrets.CX_CLIENT_SECRET }}
+          cx_tenant: accuknox-nfr
+          additional_params: --report-format sarif --output-path .
+
+      - name: Fix SARIF file levels
+        run: |
+          jq 'walk(if type == "object" and has("level") then .level |= (if . == "none" or . == "note" or . == "warning" or . == "error" then . else "note" end) else . end)' cx_result.sarif > tmp.sarif && mv tmp.sarif cx_result.sarif
+
+      - name: Append GitHub metadata to SARIF
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          SOURCE: "GitHub"
+        run: |
+          GITHUB_URL="${{ github.server_url }}/${{ github.repository }}"
+          GITHUB_RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          jq --arg repo "$GITHUB_REPOSITORY" \
+             --arg sha "$GITHUB_SHA" \
+             --arg ref "$GITHUB_REF" \
+             --arg run_id "$GITHUB_RUN_ID" \
+             --arg run_number "$GITHUB_RUN_NUMBER" \
+             --arg github_url "$GITHUB_URL" \
+             --arg github_run_url "$GITHUB_RUN_URL" \
+             --arg source "$SOURCE" \
+             '.runs[0].invocations += [{
+                "executionSuccessful": true,
+                "toolExecutionNotifications": [],
+                "toolConfigurationNotifications": [],
+                "properties": {
+                  "repository": $repo,
+                  "commit": $sha,
+                  "ref": $ref,
+                  "workflow_run_id": $run_id,
+                  "workflow_run_number": $run_number,
+                  "repository_url": $github_url,
+                  "workflow_run_url": $github_run_url,
+                  "source": $source
+                }
+              }]' cx_result.sarif > tmp.sarif && mv tmp.sarif cx_result.sarif
+
+      - name: Extract and Embed Code Snippets in SARIF using Python
+        id: embed_snippets
+        run: |
+          python3 <<EOF
+          import os
+          import json
+
+          def get_code_snippet(lines, start_line, start_column, end_column):
+              start_line_index = max(start_line - 3, 0)  # Start 2 lines before or 0
+              end_line_index = min(start_line + 2, len(lines))  # End 2 lines after
+
+              snippet_lines = lines[start_line_index:end_line_index]
+              highlighted_snippet = []
+
+              for i, line in enumerate(snippet_lines):
+                  line_number = start_line_index + i + 1
+
+                  if line_number == start_line:
+                      try:
+                          highlighted_snippet.append(
+                              line[:max(0, start_column - 1)] +
+                              "<<<HIGHLIGHT>>>" +
+                              line[max(0, start_column - 1):min(len(line), end_column)] +
+                              "<<<END_HIGHLIGHT>>>" +
+                              line[min(len(line), end_column):]
+                          )
+                      except Exception as e:
+                          print(f"Error highlighting line {line_number}: {e}")
+                          highlighted_snippet.append(line)
+                  else:
+                      highlighted_snippet.append(line)
+
+              snippet_with_comments = "// Start of snippet\n"
+              snippet_with_comments += "".join(highlighted_snippet)
+              snippet_with_comments += "// End of snippet\n"
+
+              return snippet_with_comments
+
+          def process_sarif_file(sarif_path):
+              with open(sarif_path, "r") as sarif_file:
+                  sarif_data = json.load(sarif_file)
+
+              for run in sarif_data.get("runs", []):
+                  for result in run.get("results", []):
+                      for location in result.get("locations", []):
+                          physical_location = location.get("physicalLocation", {})
+                          artifact_location = physical_location.get("artifactLocation", {})
+                          region = physical_location.get("region", {})
+
+                          uri = artifact_location.get("uri")
+                          start_line = region.get("startLine")
+                          start_column = region.get("startColumn")
+                          end_column = region.get("endColumn")
+
+                          if uri and start_line and start_column and end_column:
+                              file_path = os.path.join(".", uri.lstrip("./"))
+                              try:
+                                  with open(file_path, "r") as source_file:
+                                      lines = source_file.readlines()
+                                      snippet_with_comments = get_code_snippet(
+                                          lines, start_line, start_column, end_column
+                                      )
+                                      region["snippet"] = {
+                                          "text": snippet_with_comments
+                                      }
+                              except FileNotFoundError:
+                                  print(f"Failed to process file {file_path}: File not found.")
+                              except Exception as e:
+                                  print(f"Failed to process file {file_path}: {e}")
+
+              with open("tmp_sarif_with_snippets.sarif", "w") as output_file:
+                  json.dump(sarif_data, output_file, indent=2)
+
+          process_sarif_file("cx_result.sarif")
+          EOF
+
+      - name: Upload SARIF file with code snippets
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarif-results-with-snippets
+          path: tmp_sarif_with_snippets.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tmp_sarif_with_snippets.sarif
+
+      # - name: Push SARIF file to CSPM panel
+      #   run: |
+      #     curl --location '${{ secrets.CSPM_URL }}/api/v1/artifact/?tenant_id=${{ secrets.TENANT_ID }}&data_type=CX&save_to_s3=true&label_id=${{ secrets.LABEL_ID }}' \
+      #       --header 'Tenant-Id: ${{ secrets.TENANT_ID }}' \
+      #       --header 'Authorization: Bearer ${{ secrets.CSPM_TOKEN }}' \
+      #       --form 'file=@./tmp_sarif_with_snippets.sarif'
+            
