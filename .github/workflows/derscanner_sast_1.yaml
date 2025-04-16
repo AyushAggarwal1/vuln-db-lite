@@ -104,4 +104,3 @@ jobs:
           name: DerScanner Reports
           path: |
             *.json
-
